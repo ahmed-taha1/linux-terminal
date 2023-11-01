@@ -1,8 +1,13 @@
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.nio.file.Path;
 import java.util.*;
 import java.util.function.Consumer;
+import java.nio.file.Paths;
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
 
 
 public class Terminal {
@@ -10,6 +15,7 @@ public class Terminal {
     private final Map<String, Consumer<String[]>> commandActions;
     private final Scanner scanner;
     private final ArrayList<String> commandsHistory;
+    private Path currentPath;
     public void echo(String[] args){
         if(args.length == 1){
             System.out.println(args[0]);
@@ -19,26 +25,132 @@ public class Terminal {
         }
     }
     public void pwd(String[] args){
-
+        if (args.length != 0) {
+            throw new RuntimeException("ArgumentsError: pwd command takes no arguments.");
+        }
+        System.out.println(currentPath.toAbsolutePath().toString());
     }
     public void cd(String[] args){
+        if (args.length > 1) {
+            throw new RuntimeException("ArgumentsError: cd command accepts 0 or 1 argument.");
+        }
+        if (args.length == 0) {
+            // Change the current directory to the user's home directory
+            currentPath = Paths.get(System.getProperty("user.home"));
+        } else if (args[0].equals("..")) {
+            Path parentPath = currentPath.getParent();
+            if (parentPath != null) {
+                currentPath = parentPath;
+            } else {
+                System.err.println("Already at the root directory, cannot go up.");
+            }
+        } else {
+            // Change the current directory to the specified path
+            Path newPath = currentPath.resolve(Paths.get(args[0]));
 
+            // Check if the new path exists and is a directory
+            if (Files.exists(newPath) && Files.isDirectory(newPath)) {
+                currentPath = newPath;
+            } else {
+                System.err.println("Directory not found: " + newPath.toString());
+            }
+        }
     }
     public void ls(String[] args){
+        try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(currentPath)) {
+            for (Path entry : directoryStream) {
+                System.out.println(entry.getFileName());
+            }
+        } catch (IOException e) {
+            System.err.println("Error listing contents of the directory: " + e.getMessage());
+        }
 
     }
     public void lsReverse(String []args){
-
+        try (DirectoryStream<Path> directoryStream = Files.newDirectoryStream(currentPath)) {
+            ArrayList<Path> entries = new ArrayList<>();
+            for (Path entry : directoryStream) {
+                entries.add(entry);
+            }
+            Collections.reverse(entries);
+            for (Path entry : entries) {
+                System.out.println(entry.getFileName());
+            }
+        } catch (IOException e) {
+            System.err.println("Error listing contents of the directory: " + e.getMessage());
+        }
     }
     public void mkdir(String[] args){
+        if(args.length < 1){
+            throw new RuntimeException("ArgumentsError: mkdir command accept 1 or more arguments ,Received " + args.length);
+        }
 
-    }
-    public void rm(String[] args){
+        for(String arg : args){
+            Path path = Paths.get(arg);
+            if (!path.isAbsolute()) {
+                path = currentPath.resolve(path);
+            }
 
+            try {
+                Files.createDirectories(path);
+            } catch (IOException e) {
+                System.err.println("Failed to create the directory: " + e.getMessage());
+            }
+        }
     }
     public void rmdir(String[] args){
+        if(args.length != 1){
+            throw new RuntimeException("ArgumentsError: mkdir command accept 1 argument ,Received " + args.length);
+        }
+        if(args[0].equals("*")){
+            File directory = currentPath.toFile();
+            File[] files = directory.listFiles();
+            if (files != null) {
+                for (File file : files) {
+                    if (file.isDirectory()) {
+                        if(file.listFiles().length == 0){
+                            try {
+                                Files.delete(file.toPath());
+                            }
+                            catch (IOException e){
+                                System.err.println(e.getMessage());
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
+        else {
+            Path path = Paths.get(args[0]);
+            if (!path.isAbsolute()) {
+                path = currentPath.resolve(path);
+            }
+            File file = path.toFile();
+            if(file.isDirectory()){
+                if(file.listFiles().length == 0){
+                    try {
+                        Files.delete(file.toPath());
+                    }
+                    catch (IOException e){
+                        System.err.println(e.getMessage());
+                    }
+                }
+            }
+        }
     }
+    public void rm(String[] args){
+        if(args.length != 1){
+            throw new RuntimeException("ArgumentsError: mkdir command accept 1 argument ,Received " + args.length);
+        }
+        Path path = currentPath.resolve(args[0]);
+        try {
+            Files.delete(path);
+        } catch (IOException e){
+            System.err.println(e.getMessage());
+        }
+    }
+
     public void touch(String[] args){
         if(args.length != 1){
             throw new RuntimeException("ArgumentsError: touch command accept 1 argument(s) ,Received " +args.length);
@@ -130,6 +242,7 @@ public class Terminal {
         this.commandActions = new HashMap<>();
         this.scanner = new Scanner(System.in);
         this.commandsHistory = new ArrayList<>();
+        currentPath = Paths.get(System.getProperty("user.dir"));
         createCommandActionsMapping();
     }
     public static void main(String[] args) {
