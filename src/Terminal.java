@@ -100,7 +100,7 @@ public class Terminal {
     }
     public void rmdir(String[] args){
         if(args.length != 1){
-            throw new RuntimeException("ArgumentsError: mkdir command accept 1 argument ,Received " + args.length);
+            throw new RuntimeException("ArgumentsError: rmdir command accept 1 argument ,Received " + args.length);
         }
         if(args[0].equals("*")){
             File directory = currentPath.toFile();
@@ -136,16 +136,28 @@ public class Terminal {
                         System.err.println(e.getMessage());
                     }
                 }
+                else {
+                    System.err.println("directory is not empty");
+                }
+            }
+            else{
+                System.err.println("No Such a directory matches");
             }
         }
     }
+
     public void rm(String[] args){
         if(args.length != 1){
-            throw new RuntimeException("ArgumentsError: mkdir command accept 1 argument ,Received " + args.length);
+            throw new RuntimeException("ArgumentsError: rm command accept 1 argument ,Received " + args.length);
         }
         Path path = currentPath.resolve(args[0]);
         try {
-            Files.delete(path);
+            if(Files.exists(path)) {
+                Files.delete(path);
+            }
+            else {
+                System.err.println(path.toString() + " NO Such a file!");
+            }
         } catch (IOException e){
             System.err.println(e.getMessage());
         }

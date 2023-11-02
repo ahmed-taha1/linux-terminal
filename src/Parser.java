@@ -1,3 +1,4 @@
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -6,6 +7,7 @@ import java.util.Map;
 public class Parser {
     private String commandName;
     private String[] args;
+
     public boolean parse(String input){
         ArrayList<String> parts = new ArrayList<>(Arrays.asList(input.split(" ")));
         ArrayList<String> argsList = new ArrayList<>();
@@ -13,7 +15,7 @@ public class Parser {
             return false;
         }
         this.commandName = parts.get(0);
-        if(parts.size() > 2 && parts.get(1).startsWith("-")){
+        if(parts.size() >= 2 && parts.get(1).startsWith("-")){
             this.commandName += " " + parts.get(1);
         } else if (parts.size() > 1){
             argsList.add(parts.get(1));
@@ -24,9 +26,11 @@ public class Parser {
         this.args = argsList.toArray(new String[0]);
         return true;
     }
+
     public String getCommandName(){
         return  this.commandName;
     }
+
     public String[] getArgs(){
         return this.args;
     }
