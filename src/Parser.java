@@ -34,6 +34,7 @@ public class Parser {
     public String[] getArgs(){
         return this.args;
     }
+}
     //    private final Map<String,int[]> commandsArgumentLengthMapping = new HashMap<>();
 
 //    private void createCommandArgumentsMapping(){
@@ -68,8 +69,3 @@ public class Parser {
 //        }
 //        return false;
 //    }
-<<<<<<< HEAD
-}
-=======
-}
->>>>>>> 6ee85b4f13d135c66d53e444bc570bba0920d5a7
