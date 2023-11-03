@@ -106,9 +106,7 @@ public class Terminal {
         }
         for(String arg : args){
             Path path = Paths.get(arg);
-            if (!path.isAbsolute()) {
-                path = currentPath.resolve(path);
-            }
+            path = currentPath.resolve(path);
             try {
                 Files.createDirectories(path);
             } catch (IOException e) {
@@ -141,9 +139,7 @@ public class Terminal {
 
         else {
             Path path = Paths.get(args[0]);
-            if (!path.isAbsolute()) {
-                path = currentPath.resolve(path);
-            }
+            path = currentPath.resolve(path);
             File file = path.toFile();
             if(file.isDirectory()){
                 if(file.listFiles().length == 0){
@@ -272,10 +268,12 @@ public class Terminal {
             System.out.println((i+1)+" "+this.commandsHistory.get(i));
         }
     }
+
     public static void main(String[] args) throws IOException {
         Terminal terminal = new Terminal();
         terminal.run();
     }
+
     public void run(){
         while (true){
             System.out.print(">");
