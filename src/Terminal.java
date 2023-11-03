@@ -16,6 +16,14 @@ public class Terminal {
     private final Scanner scanner;
     private final ArrayList<String> commandsHistory;
     private Path currentPath;
+    public Terminal(){
+        this.parser = new Parser();
+        this.commandActions = new HashMap<>();
+        this.scanner = new Scanner(System.in);
+        this.commandsHistory = new ArrayList<>();
+        currentPath = Paths.get(System.getProperty("user.dir"));
+        createCommandActionsMapping();
+    }
     public void echo(String[] args){
         if(args.length == 1){
             System.out.println(args[0]);
@@ -37,22 +45,34 @@ public class Terminal {
         if (args.length == 0) {
             // Change the current directory to the user's home directory
             currentPath = Paths.get(System.getProperty("user.home"));
-        } else if (args[0].equals("..")) {
-            Path parentPath = currentPath.getParent();
-            if (parentPath != null) {
-                currentPath = parentPath;
-            } else {
-                System.err.println("Already at the root directory, cannot go up.");
-            }
         } else {
-            // Change the current directory to the specified path
-            Path newPath = currentPath.resolve(Paths.get(args[0]));
+            String target = args[0];
+            Path newPath;
 
-            // Check if the new path exists and is a directory
+            // Check if the target path is absolute or relative
+            if (Paths.get(target).isAbsolute()) {
+                newPath = Paths.get(target);
+            } else {
+                if (target.equals("..")) {
+                    Path parentPath = currentPath.getParent();
+                    if (parentPath != null) {
+                        currentPath = parentPath;
+                        return;
+                    } else {
+                        System.err.println("Already at the root directory, cannot go up.");
+                        return;
+                    }
+                } else if (target.equals(".")) {
+                    // Stay in the current directory
+                    return;
+                }
+
+                newPath = currentPath.resolve(target);
+            }
             if (Files.exists(newPath) && Files.isDirectory(newPath)) {
                 currentPath = newPath;
             } else {
-                System.err.println("Directory not found: " + newPath.toString());
+                System.err.println("Directory not found: " + target);
             }
         }
     }
@@ -84,13 +104,11 @@ public class Terminal {
         if(args.length < 1){
             throw new RuntimeException("ArgumentsError: mkdir command accept 1 or more arguments ,Received " + args.length);
         }
-
         for(String arg : args){
             Path path = Paths.get(arg);
             if (!path.isAbsolute()) {
                 path = currentPath.resolve(path);
             }
-
             try {
                 Files.createDirectories(path);
             } catch (IOException e) {
@@ -162,12 +180,12 @@ public class Terminal {
             System.err.println(e.getMessage());
         }
     }
-
     public void touch(String[] args){
         if(args.length != 1){
             throw new RuntimeException("ArgumentsError: touch command accept 1 argument(s) ,Received " +args.length);
         }
-        File file = new File(args[0]);
+        Path filePath = this.currentPath.resolve(args[0]);
+        File file = new File(filePath.toString());
         try {
             if(!file.exists()){
                 file.createNewFile();
@@ -181,8 +199,10 @@ public class Terminal {
             throw new RuntimeException("ArgumentsError: cp command accept 2 argument(s) ,Received " +args.length);
         }
         try {
-            File source = new File(args[0]);
-            FileWriter destination = new FileWriter(args[1]);
+            Path firstFilePath = this.currentPath.resolve(args[0]);
+            File source = new File(firstFilePath.toString());
+            Path secondFilePath = this.currentPath.resolve(args[1]);
+            FileWriter destination = new FileWriter(secondFilePath.toString());
             Scanner fileScanner = new Scanner(source);
             while (fileScanner.hasNext()){
                 String line = fileScanner.nextLine();
@@ -199,7 +219,8 @@ public class Terminal {
             throw new RuntimeException("ArgumentsError: wc command accept 1 argument(s) ,Received " +args.length);
         }
         try {
-            File file = new File(args[0]);
+            Path filePath = this.currentPath.resolve(args[0]);
+            File file = new File(filePath.toString());
             Scanner fileScanner = new Scanner(file);
             int lines = 0 ;
             int words = 0 ;
@@ -210,7 +231,8 @@ public class Terminal {
                 words += lineContent.split(" ").length;
                 characters += lineContent.length();
             }
-            System.out.println(lines + " " + words + " " + characters + " " + args[0]);
+            String[] paths = args[0].split("/");
+            System.out.println(lines + " " + words + " " + characters + " " + paths[paths.length-1]);
             fileScanner.close();
         } catch (IOException exception){
             throw new RuntimeException(exception.getMessage());
@@ -221,7 +243,8 @@ public class Terminal {
             throw new RuntimeException("ArgumentsError: cat command Accept 1 or 2 argument(s),Received "+args.length);
         }
         try {
-            File file = new File(args[0]);
+            Path firstFilePath = this.currentPath.resolve(args[0]);
+            File file = new File(firstFilePath.toString());
             Scanner fileScanner = new Scanner(file);
             while (fileScanner.hasNext()){
                 System.out.println(fileScanner.nextLine());
@@ -230,7 +253,8 @@ public class Terminal {
             if(args.length < 2){
                 return;
             }
-            file = new File(args[1]);
+            Path secondFilePath = this.currentPath.resolve(args[1]);
+            file = new File(secondFilePath.toString());
             fileScanner = new Scanner(file);
             while (fileScanner.hasNext()){
                 System.out.println(fileScanner.nextLine());
@@ -242,42 +266,15 @@ public class Terminal {
     }
     public void history(String[] args){
         if(args.length > 0 ){
-            throw new RuntimeException("ArgumentsError: history command accept 0 argument(s) ,Received " +args.length);
+            throw new RuntimeException("ArgumentsError: history command accept 0 argument(s) ,Received " + args.length);
         }
         for(int i =0 ;i<this.commandsHistory.size();i++){
             System.out.println((i+1)+" "+this.commandsHistory.get(i));
         }
     }
-
-    public Terminal(){
-        this.parser = new Parser();
-        this.commandActions = new HashMap<>();
-        this.scanner = new Scanner(System.in);
-        this.commandsHistory = new ArrayList<>();
-        currentPath = Paths.get(System.getProperty("user.dir"));
-        createCommandActionsMapping();
-    }
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         Terminal terminal = new Terminal();
         terminal.run();
-    }
-    public void chooseCommandAction(){
-        String command = parser.getCommandName();
-        String[]args = parser.getArgs();
-
-        // todo remove after testing
-        System.out.println("----------Testing--------------");
-        System.out.println("command-> "+ command);
-        for(int i =0 ;i<args.length;i++){
-            System.out.println("args("+(i+1)+")->"+args[i]);
-        }
-        System.out.println("--------------------------------");
-        Consumer<String[]> commandAction = this.commandActions.get(command);
-        if(commandAction == null){
-            System.out.println("CommandError: command doesn't Exist");
-            return;
-        }
-        commandAction.accept(args);
     }
     public void run(){
         while (true){
@@ -291,15 +288,27 @@ public class Terminal {
             chooseCommandAction();
         }
     }
+    public void chooseCommandAction(){
+        String command = parser.getCommandName();
+        String[]args = parser.getArgs();
+        Consumer<String[]> commandAction = this.commandActions.get(command);
+        if(commandAction == null){
+            System.out.println("CommandError: command doesn't Exist");
+            this.commandsHistory.add(0,command+" "+Arrays.toString(args));
+            return;
+        }
+        commandAction.accept(args);
+    }
     private Consumer<String[]> commandWrapper(String commandName,Consumer<String[]> command,ArrayList<String>history){
         return new Consumer<String[]>() {
             @Override
             public void accept(String[] args) {
                 try {
-                    history.add(0,commandName +" "+ Arrays.toString(args));
                     command.accept(args);
-                }catch (RuntimeException error){
-                    System.out.println(error.getMessage());
+                }catch (Exception error){
+                    System.err.println(error.getMessage());
+                }finally {
+                    history.add(0,commandName +" "+ Arrays.toString(args));
                 }
             }
         };
